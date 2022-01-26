@@ -1,4 +1,5 @@
-const { JWT_SECRET } = require("../secrets"); // use this secret!
+const jwt = require("jsonwebtoken");
+const { JWT_SECRET } = require("../secrets");
 
 const restricted = (req, res, next) => {
   /*
@@ -16,9 +17,23 @@ const restricted = (req, res, next) => {
 
     Put the decoded token in the req object, to make life easier for middlewares downstream!
   */
-}
+  const token = req.headers.authorization;
+  if (!token) {
+    next({ status: 401, message: "Token required" });
+  } else {
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+      if (err) {
+        next({ status: 401, message: "Token invalid" });
+      } else {
+        req.decodedJWT = decoded;
+        console.log(decoded);
+        next();
+      }
+    });
+  }
+};
 
-const only = role_name => (req, res, next) => {
+const only = (role_name) => (req, res, next) => {
   /*
     If the user does not provide a token in the Authorization header with a role_name
     inside its payload matching the role_name passed to this function as its argument:
@@ -29,8 +44,12 @@ const only = role_name => (req, res, next) => {
 
     Pull the decoded token from the req object, to avoid verifying it again!
   */
-}
-
+  if (req.decodedJWT.role === role_name) {
+    next();
+  } else {
+    next({ status: 403, message: "you have no power here!" });
+  }
+};
 
 const checkUsernameExists = (req, res, next) => {
   /*
@@ -40,13 +59,13 @@ const checkUsernameExists = (req, res, next) => {
       "message": "Invalid credentials"
     }
   */
-}
-
+  next();
+};
 
 const validateRoleName = (req, res, next) => {
-  /*
-    If the role_name in the body is valid, set req.role_name to be the trimmed string and proceed.
+  //  If the role_name in the body is valid, set req.role_name to be the trimmed string and proceed.
 
+  /*
     If role_name is missing from req.body, or if after trimming it is just an empty string,
     set req.role_name to be 'student' and allow the request to proceed.
 
@@ -62,11 +81,12 @@ const validateRoleName = (req, res, next) => {
       "message": "Role name can not be longer than 32 chars"
     }
   */
-}
+  next();
+};
 
 module.exports = {
   restricted,
   checkUsernameExists,
   validateRoleName,
   only,
-}
+};
